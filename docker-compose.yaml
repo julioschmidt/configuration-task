@@ -22,6 +22,8 @@ services:
       DATABASE_URL: postgresql://postgres:root@postgres:5432/configuracao-pretto
     ports:
       - "3000:3000"
+    command: >
+      sh -c "npx prisma migrate deploy && npm run seed && npm run start"
 
   frontend:
     build: ./frontend
