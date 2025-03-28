@@ -17,7 +17,7 @@ function App() {
 
   const [tarefas, setTarefas] = useState<Tarefa[]>([])
 
-  axios.get('http://localhost:3000').then(response => {
+  axios.get('http://177.44.248.67:3000').then(response => {
     setTarefas(response.data)
   }).catch(error => {
     console.error(error)
