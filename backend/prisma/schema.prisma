@@ -14,10 +14,16 @@ datasource db {
 }
 
 model Tarefa {
-  id Int @unique @id
+  id Int @unique @id @default(autoincrement())
   descricao String
-  data_criacao DateTime
-  data_prevista DateTime
-  data_encerramento DateTime
+  data_criacao DateTime?
+  data_prevista DateTime?
+  data_encerramento DateTime?
   situacao String
+}
+
+model Usuario {
+  id     Int    @id @default(autoincrement())
+  nome   String @unique
+  senha  String
 }
