@@ -333,8 +333,8 @@ app.get("/tarefas/relatorio/pdf", async (req: Request, res: Response) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+app.listen(PORT as number, '0.0.0.0', () => {
+  console.log(`Server listening on port ${PORT}`);
 });
 
 export { app };
