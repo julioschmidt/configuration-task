@@ -6,9 +6,13 @@ import nodemailer from "nodemailer";
 import PDFDocument from "pdfkit";
 import fs from "fs";
 import path from "path";
+import dotenv from 'dotenv'
+
+
+dotenv.config()
 
 const app: Express = express();
-const port = 3000;
+const PORT = process.env.PORT || 3000
 
 app.use(cors());
 app.use(express.json()); // Necessário para ler JSON no body das requisições
@@ -329,8 +333,8 @@ app.get("/tarefas/relatorio/pdf", async (req: Request, res: Response) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
 });
 
 export { app };
