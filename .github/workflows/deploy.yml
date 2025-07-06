@@ -1,0 +1,99 @@
+name: Deploy App
+
+on:
+  push:
+    branches:
+      - main
+  create:
+    tags:
+      - 'v*'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set deploy target
+        id: set-env
+        run: |
+          if [[ "${GITHUB_REF}" == refs/heads/main ]]; then
+            echo "env=homolog" >> "$GITHUB_OUTPUT"
+            echo "dir=/var/www/app/homolog" >> "$GITHUB_OUTPUT"
+            echo "pm2_name=${{ secrets.PM2_BACK_HOMO }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "env=prod" >> "$GITHUB_OUTPUT"
+            echo "dir=/var/www/app/prod" >> "$GITHUB_OUTPUT"
+            echo "pm2_name=${{ secrets.PM2_BACK_PROD }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Deploy via rsync
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
+            set -e
+
+            echo "Deploying to ${{ steps.set-env.outputs.env }}"
+
+            # Preparar pastas
+            rm -rf ${{ steps.set-env.outputs.dir }}/frontend
+            rm -rf ${{ steps.set-env.outputs.dir }}/backend
+            mkdir -p ${{ steps.set-env.outputs.dir }}
+
+            # Criar pastas temporárias para build
+            cd /tmp
+            rm -rf build-frontend build-backend
+            mkdir build-frontend build-backend
+EOF
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+          tar -czf ../frontend.tar.gz dist
+      - name: Build backend
+        run: |
+          cd backend
+          npm ci
+          npm run build
+          tar -czf ../backend.tar.gz dist package.json package-lock.json ecosystem.config.js
+
+      - name: Upload via SCP
+        run: |
+          scp frontend.tar.gz ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/frontend.tar.gz
+          scp backend.tar.gz ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/backend.tar.gz
+
+      - name: Finalizar deploy remoto
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
+            set -e
+
+            cd /tmp
+
+            # Extrair frontend
+            tar -xzf frontend.tar.gz -C build-frontend
+            mv build-frontend/dist ${{ steps.set-env.outputs.dir }}/frontend
+
+            # Extrair backend
+            tar -xzf backend.tar.gz -C build-backend
+            mv build-backend/dist ${{ steps.set-env.outputs.dir }}/backend/dist
+            cp build-backend/package*.json build-backend/ecosystem.config.js ${{ steps.set-env.outputs.dir }}/backend/
+
+            cd ${{ steps.set-env.outputs.dir }}/backend
+
+            # Instalar dependências de produção
+            npm ci --omit=dev
+
+            # Restart PM2
+            pm2 reload ${{ steps.set-env.outputs.pm2_name }}
+
+            # Reload nginx se necessário
+            sudo systemctl reload nginx || true
+EOF
