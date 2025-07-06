@@ -152,7 +152,7 @@ function TarefasApp() {
       <div className='w-full max-w-5xl bg-white shadow-lg rounded-lg p-6'>
         <div className='flex justify-between items-center mb-6'>
           <div>
-            <h1 className='text-3xl font-bold text-gray-800'>Sistema de Tarefasssss</h1>
+            <h1 className='text-3xl font-bold text-gray-800'>Sistema de Tarefasssssss</h1>
             <p className='text-sm text-gray-600'>Bem-vindo, {userName}</p>
           </div>
           <div className='flex gap-2'>
