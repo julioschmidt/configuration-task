@@ -33,9 +33,17 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Deploy via rsync
+      - name: Add SSH host to known_hosts
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Test SSH connection
+        run: |
+          ssh -o ConnectTimeout=10 -v ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'echo "SSH connection successful"'
+
+      - name: Prepare remote directories
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
             set -e
 
             echo "Deploying to ${{ steps.set-env.outputs.env }}"
@@ -49,6 +57,8 @@ jobs:
             cd /tmp
             rm -rf build-frontend build-backend
             mkdir build-frontend build-backend
+
+            echo "Remote directories prepared successfully"
           EOF
 
       - name: Build frontend
@@ -65,36 +75,58 @@ jobs:
           npm run build
           tar -czf ../backend.tar.gz dist package.json package-lock.json ecosystem.config.js
 
-      - name: Upload via SCP
+      - name: Upload files via SCP
         run: |
-          scp frontend.tar.gz ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/frontend.tar.gz
-          scp backend.tar.gz ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/backend.tar.gz
+          echo "Uploading frontend.tar.gz..."
+          scp -o ConnectTimeout=30 frontend.tar.gz ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/frontend.tar.gz
 
-      - name: Finalizar deploy remoto
+          echo "Uploading backend.tar.gz..."
+          scp -o ConnectTimeout=30 backend.tar.gz ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/backend.tar.gz
+
+          echo "Files uploaded successfully"
+
+      - name: Deploy and restart services
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
             set -e
 
+            echo "Starting deployment process..."
             cd /tmp
 
+            # Verificar se os arquivos foram enviados
+            if [ ! -f frontend.tar.gz ] || [ ! -f backend.tar.gz ]; then
+              echo "ERROR: Upload files not found!"
+              exit 1
+            fi
+
             # Extrair frontend
+            echo "Extracting frontend..."
             tar -xzf frontend.tar.gz -C build-frontend
             mv build-frontend/dist ${{ steps.set-env.outputs.dir }}/frontend
 
             # Extrair backend
+            echo "Extracting backend..."
             tar -xzf backend.tar.gz -C build-backend
             mkdir -p ${{ steps.set-env.outputs.dir }}/backend
             mv build-backend/dist ${{ steps.set-env.outputs.dir }}/backend/dist
             cp build-backend/package*.json build-backend/ecosystem.config.js ${{ steps.set-env.outputs.dir }}/backend/
 
+            # Instalar dependências
+            echo "Installing backend dependencies..."
             cd ${{ steps.set-env.outputs.dir }}/backend
-
-            # Instalar dependências de produção
             npm ci --omit=dev
 
             # Restart PM2
-            pm2 reload ${{ steps.set-env.outputs.pm2_name }}
+            echo "Restarting PM2 process: ${{ steps.set-env.outputs.pm2_name }}"
+            pm2 reload ${{ steps.set-env.outputs.pm2_name }} || pm2 start ${{ steps.set-env.outputs.pm2_name }}
 
-            # Reload nginx se necessário
-            sudo systemctl reload nginx || true
+            # Reload nginx
+            echo "Reloading nginx..."
+            sudo systemctl reload nginx || echo "Warning: nginx reload failed"
+
+            # Cleanup
+            echo "Cleaning up temporary files..."
+            rm -rf /tmp/build-frontend /tmp/build-backend /tmp/frontend.tar.gz /tmp/backend.tar.gz
+
+            echo "Deployment completed successfully!"
           EOF
