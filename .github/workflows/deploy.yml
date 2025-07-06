@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-  create:
     tags:
       - 'v*'
 
@@ -19,7 +18,7 @@ jobs:
       - name: Set deploy target
         id: set-env
         run: |
-          if [[ "${GITHUB_REF}" == refs/heads/main ]]; then
+          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
             echo "env=homolog" >> "$GITHUB_OUTPUT"
             echo "dir=/var/www/app/homolog" >> "$GITHUB_OUTPUT"
             echo "pm2_name=${{ secrets.PM2_BACK_HOMO }}" >> "$GITHUB_OUTPUT"
@@ -36,7 +35,7 @@ jobs:
 
       - name: Deploy via rsync
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
             set -e
 
             echo "Deploying to ${{ steps.set-env.outputs.env }}"
@@ -50,7 +49,7 @@ jobs:
             cd /tmp
             rm -rf build-frontend build-backend
             mkdir build-frontend build-backend
-EOF
+          EOF
 
       - name: Build frontend
         run: |
@@ -58,6 +57,7 @@ EOF
           npm ci
           npm run build
           tar -czf ../frontend.tar.gz dist
+
       - name: Build backend
         run: |
           cd backend
@@ -72,7 +72,7 @@ EOF
 
       - name: Finalizar deploy remoto
         run: |
-          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
             set -e
 
             cd /tmp
@@ -83,6 +83,7 @@ EOF
 
             # Extrair backend
             tar -xzf backend.tar.gz -C build-backend
+            mkdir -p ${{ steps.set-env.outputs.dir }}/backend
             mv build-backend/dist ${{ steps.set-env.outputs.dir }}/backend/dist
             cp build-backend/package*.json build-backend/ecosystem.config.js ${{ steps.set-env.outputs.dir }}/backend/
 
@@ -96,4 +97,4 @@ EOF
 
             # Reload nginx se necessário
             sudo systemctl reload nginx || true
-EOF
+          EOF
