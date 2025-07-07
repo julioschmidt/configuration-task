@@ -14,6 +14,9 @@ jobs:
           echo "Usuário: ${{ secrets.SSH_USER }}"
           echo "Host: ${{ secrets.SSH_HOST }}"
 
+      - name: Descobrir IP público do runner
+        run: curl https://api.ipify.org
+
       - name: Setup SSH Key
         run: |
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key
