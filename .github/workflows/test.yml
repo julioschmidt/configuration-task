@@ -20,13 +20,15 @@ jobs:
           echo "" >> private_key  # força newline no final
           chmod 600 private_key
 
-      - name: Run SSH command
+      - name: SSH deploy
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: 177.44.248.67
           username: univates
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: echo "✅ Conexão via SSH pelo Actions!"
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            echo "✅ Conexão via SSH pelo Actions!"
+          debug: true  # ativa debug para logs mais detalhados
 
       - name: Verificar permissão e tipo da chave
         run: |
