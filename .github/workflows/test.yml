@@ -1,0 +1,26 @@
+name: Test SSH Connection
+
+on:
+  workflow_dispatch: # permite rodar manualmente pela interface do GitHub
+
+jobs:
+  ssh-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Print debug info
+        run: |
+          echo "🏁 Iniciando teste de conexão SSH"
+          echo "Usuário: ${{ secrets.SSH_USER }}"
+          echo "Host: ${{ secrets.SSH_HOST }}"
+
+      - name: Setup SSH Key
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key
+          chmod 600 private_key
+        shell: bash
+
+      - name: Test SSH connection
+        run: |
+          ssh -vvv -i private_key -o StrictHostKeyChecking=no "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" "echo '✅ Conexão SSH bem-sucedida!'"
+        shell: bash
