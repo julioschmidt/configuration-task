@@ -27,4 +27,4 @@ jobs:
 
       - name: Testar conexão SSH (verbose)
         run: |
-          ssh -vvv -i private_key -o StrictHostKeyChecking=no "univates@177.44.248.67" "echo '✅ Conexão SSH bem-sucedida!'"
+          ssh -vvv -i private_key univates@177.44.248.67 "echo '✅ Conexão SSH bem-sucedida!'"
