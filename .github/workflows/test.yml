@@ -29,6 +29,7 @@ jobs:
           script: |
             echo "✅ Conexão via SSH pelo Actions!"
           debug: true  # ativa debug para logs mais detalhados
+          use_insecure_cipher: true
 
       - name: Verificar permissão e tipo da chave
         run: |
