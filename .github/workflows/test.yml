@@ -17,9 +17,10 @@ jobs:
       - name: Descobrir IP público do runner
         run: curl https://api.ipify.org
 
-      - name: Setup SSH Key
+      - name: Setup SSH Key (com quebra de linha)
         run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\r' | awk '{print}' ORS='\n' > private_key
+          echo "" >> private_key  # força newline no final
           chmod 600 private_key
         shell: bash
 
