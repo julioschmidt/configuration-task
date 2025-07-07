@@ -20,6 +20,14 @@ jobs:
           echo "" >> private_key  # força newline no final
           chmod 600 private_key
 
+      - name: Run SSH command
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: 177.44.248.67
+          username: univates
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: echo "✅ Conexão via SSH pelo Actions!"
+
       - name: Verificar permissão e tipo da chave
         run: |
           ls -l private_key
@@ -27,4 +35,4 @@ jobs:
 
       - name: Testar conexão SSH (verbose)
         run: |
-          ssh -vvv -i private_key univates@177.44.248.67 "echo '✅ Conexão SSH bem-sucedida!'"
+          ssh -vvv -i private_key -o StrictHostKeyChecking=no "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" "echo '✅ Conexão SSH bem-sucedida!'"
