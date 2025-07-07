@@ -25,7 +25,7 @@ jobs:
         with:
           host: 177.44.248.67
           username: univates
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             echo "✅ Conexão via SSH pelo Actions!"
           debug: true  # ativa debug para logs mais detalhados
