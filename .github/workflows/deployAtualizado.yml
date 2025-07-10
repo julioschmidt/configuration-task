@@ -1,0 +1,83 @@
+name: Deploy App
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set target environment
+        id: env
+        run: |
+          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            echo "env=homolog" >> "$GITHUB_OUTPUT"
+            echo "branch=main" >> "$GITHUB_OUTPUT"
+            echo "dir=/var/www/app/homolog" >> "$GITHUB_OUTPUT"
+            echo "pm2_name=${{ secrets.PM2_BACK_HOMO }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "env=prod" >> "$GITHUB_OUTPUT"
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+            echo "dir=/var/www/app/prod" >> "$GITHUB_OUTPUT"
+            echo "pm2_name=${{ secrets.PM2_BACK_PROD }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "Unknown ref ${GITHUB_REF}"
+            exit 1
+          fi
+
+      - name: Setup SSH manually for act
+        shell: bash
+        run: |
+          mkdir -p ~/.ssh
+          echo -e "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          echo -e "Host *\n  StrictHostKeyChecking no\n  UserKnownHostsFile=/dev/null" > ~/.ssh/config
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/id_rsa
+
+      - name: Deploy via SSH
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s <<EOF
+            set -e
+            sudo bash -c '
+
+            cd "${{ steps.env.outputs.dir }}"
+
+            echo "### Checking out code"
+            git reset --hard
+            git clean -fd
+
+            if [[ "${{ steps.env.outputs.env }}" == "homolog" ]]; then
+              git checkout main
+              git pull origin main
+            elif [[ "${{ steps.env.outputs.env }}" == "prod" ]]; then
+              git fetch --all --tags
+              git checkout tags/${{ steps.env.outputs.tag }}
+            fi
+
+            echo "### Installing frontend deps"
+            cd frontend
+            sudo npm ci
+            sudo npm run build
+            sudo mkdir -p /var/www/app/homolog/public
+            sudo cp -r dist/* /var/www/app/homolog/public
+
+            echo "### Installing backend deps"
+            cd ../backend
+            sudo npm ci
+            sudo npm run build
+
+            echo "### Reloading PM2"
+            sudo pm2 reload "${{ steps.env.outputs.pm2_name }}" || sudo pm2 start ecosystem.config.js
+
+            echo "### Reloading nginx (optional)"
+            sudo systemctl reload nginx || true
+
+            echo "### Deployment finished"
+            '
+          EOF
