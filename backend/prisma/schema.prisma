@@ -22,6 +22,11 @@ model Tarefa {
   situacao String
 }
 
+model Categoria {
+  id Int @unique @id @default(autoincrement())
+  descricao String
+}
+
 model Usuario {
   id     Int    @id @default(autoincrement())
   nome   String @unique
