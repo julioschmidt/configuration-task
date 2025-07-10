@@ -72,6 +72,9 @@ jobs:
             cd backend
             sudo npm ci
 
+            echo "### Running tests"
+            npm run test
+
             echo "### Applying Prisma migrations"
             npx prisma migrate deploy
 
