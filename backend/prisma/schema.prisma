@@ -20,7 +20,6 @@ model Tarefa {
   data_prevista DateTime?
   data_encerramento DateTime?
   situacao String
-  teste String?
 }
 
 model Usuario {
