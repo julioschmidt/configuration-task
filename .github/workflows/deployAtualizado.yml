@@ -64,12 +64,21 @@ jobs:
             cd frontend
             sudo npm ci
             sudo npm run build
-            sudo mkdir -p /var/www/app/homolog/public
-            sudo cp -r dist/* /var/www/app/homolog/public
+            cd ..
+            sudo mkdir -p public
+            sudo cp -r frontend/dist/* public
 
             echo "### Installing backend deps"
-            cd ../backend
+            cd backend
             sudo npm ci
+
+            echo "### Applying Prisma migrations"
+            npx prisma migrate deploy
+
+            echo "### Generating Prisma client"
+            npx prisma generate
+
+            echo "### Building backend"
             sudo npm run build
 
             echo "### Reloading PM2"
